@@ -1,0 +1,13 @@
+{
+  "name": "abastories",
+  "version": "0.0.1",
+  "description": "Bot to convert automatically my father's stories to markdown and upload to git",
+  "main": "server.js",
+  "author": "Chaim Lando",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^4.10.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0"
+  }
+}
