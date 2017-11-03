@@ -29,6 +29,7 @@ app.post('/webhook', (request, response) => {
   }
   const { body: { listFolder: { accounts } } } = request;
   accounts.forEach(handleAccount);
+  return response.send({ message: 'ok' });
 });
 
 app.listen(port, () => {

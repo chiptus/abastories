@@ -16,29 +16,34 @@ module.exports = {
 async function handleAccount() {
   // const token = redis.hget('tokens', account);
   // let cursor = redis.hget('cursors', account);
-
-  dbx = new Dropbox({ accessToken: DROPBOX_TOKEN });
-  let hasMore = true;
-  while (hasMore) {
-    let result = cursor
-      ? await dbx.filesListFolderContinue(cursor)
-      : await dbx.filesListFolder({ path: filePath });
-    result.entries.forEach(handleEntry);
+  try {
+    dbx = new Dropbox({ accessToken: DROPBOX_TOKEN });
+    let hasMore = true;
+    while (hasMore) {
+      let result = cursor
+        ? await dbx.filesListFolderContinue({ cursor })
+        : await dbx.filesListFolder({ path: filePath });
+      result.entries.forEach(handleEntry);
+      cursor = result.cursor;
+      hasMore = result.has_more;
+    }
+  } catch (e) {
+    console.log('Error in handleAccount', e.error);
   }
 }
 
 async function handleEntry(entry) {
   console.log(entry.path_lower);
   return;
-  if (isFolder(entry)) {
-    return await handleFolder(entry);
-  }
-  if (isDeleted(entry)) {
-    return await handleDeleted(entry);
-  }
-  if (isFile(entry)) {
-    return await handleFile(entry);
-  }
+  // if (isFolder(entry)) {
+  //   return await handleFolder(entry);
+  // }
+  // if (isDeleted(entry)) {
+  //   return await handleDeleted(entry);
+  // }
+  // if (isFile(entry)) {
+  //   return await handleFile(entry);
+  // }
 }
 
 async function handleFile(fileEntry) {
