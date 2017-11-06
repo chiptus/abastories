@@ -18,7 +18,8 @@
     "dropbox": "^2.5.12",
     "express": "^4.16.2",
     "humps": "^2.0.1",
-    "ioredis": "^3.2.1"
+    "ioredis": "^3.2.1",
+    "node-pandoc": "^0.3.0"
   },
   "scripts": {
     "dev": "nodemon server.js"

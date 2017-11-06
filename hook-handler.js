@@ -1,6 +1,8 @@
 // const Redis = require('ioredis');
 const Dropbox = require('dropbox');
 // const { JOBS_CHANNEL } = require('./constants');
+const pandoc = require('node-pandoc');
+
 const { DROPBOX_TOKEN } = process.env;
 let filePath = '/Shared Folders/book';
 let cursor = null;
@@ -33,22 +35,33 @@ async function handleAccount() {
 }
 
 async function handleEntry(entry) {
-  console.log(entry.path_lower);
-  return;
-  // if (isFolder(entry)) {
-  //   return await handleFolder(entry);
-  // }
-  // if (isDeleted(entry)) {
-  //   return await handleDeleted(entry);
-  // }
-  // if (isFile(entry)) {
-  //   return await handleFile(entry);
-  // }
+  if (isFolder(entry)) {
+    return await handleFolder(entry);
+  }
+  if (isDeleted(entry)) {
+    return await handleDeleted(entry);
+  }
+  if (isFile(entry)) {
+    return await handleFile(entry);
+  }
+  console.log(entry);
 }
 
 async function handleFile(fileEntry) {
-  const fileResponse = await dbx.filesDownload({ path: fileEntry.path_lower });
-  console.log(fileResponse.content);
+  const ext = getFileExtension(fileEntry.path_lower);
+  if (ext === 'docx' || ext === 'doc') {
+    const fileResponse = await dbx.filesDownload({
+      path: fileEntry.path_lower,
+    });
+    if (!fileResponse.content) {
+      console.log('no content', fileEntry.path_lower);
+      return;
+    }
+    const md = await convertStringFromDocxToMarkdown(fileResponse.file_binary);
+    console.log(md);
+    throw new Error('stop to try');
+  }
+  console.log('not doc', ext);
 }
 
 async function handleDeleted(deletedEntry) {
@@ -59,14 +72,35 @@ async function handleFolder(folderEntry) {
   //create a new folder if doesn't exist
 }
 
-function isFolder({ tag }) {
-  return tag === 'folder';
+function isFolder(entry) {
+  return entry['.tag'] === 'folder';
 }
 
-function isFile({ tag }) {
-  return tag === 'file';
+function isFile(entry) {
+  return entry['.tag'] === 'file';
 }
 
-function isDeleted({ tag }) {
-  return tag === 'deleted';
+function isDeleted(entry) {
+  return entry['.tag'] === 'deleted';
+}
+let index = 0;
+async function convertStringFromDocxToMarkdown(str) {
+  const fs = require('fs');
+  const { promisify } = require('util');
+  const writeFileAsync = promisify(fs.writeFile);
+  const filename = `./temps/${index++}.doc`;
+  await writeFileAsync(filename, str);
+  return new Promise((resolve, reject) => {
+    pandoc(filename, '-f docx -t markdown', (err, result) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(result);
+    });
+  });
+}
+
+function getFileExtension(filePath) {
+  const regMatch = filePath.match(/\.(\w+)$/);
+  return regMatch ? regMatch[1] : '';
 }

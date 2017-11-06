@@ -28,7 +28,9 @@ app.post('/webhook', (request, response) => {
     return response.status(403).send('Request is invalid');
   }
   const { body: { listFolder: { accounts } } } = request;
+  console.log('handling accounts');
   accounts.forEach(handleAccount);
+  console.info('handled accounts');
   return response.send({ message: 'ok' });
 });
 
