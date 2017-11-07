@@ -2,6 +2,10 @@
 const Dropbox = require('dropbox');
 // const { JOBS_CHANNEL } = require('./constants');
 const pandoc = require('node-pandoc');
+const fs = require('fs');
+const { promisify } = require('util');
+
+const writeFileAsync = promisify(fs.writeFile);
 
 const { DROPBOX_TOKEN } = process.env;
 let filePath = '/Shared Folders/book';
@@ -44,24 +48,42 @@ async function handleEntry(entry) {
   if (isFile(entry)) {
     return await handleFile(entry);
   }
-  console.log(entry);
 }
-
 async function handleFile(fileEntry) {
   const ext = getFileExtension(fileEntry.path_lower);
-  if (ext === 'docx' || ext === 'doc') {
-    const fileResponse = await dbx.filesDownload({
-      path: fileEntry.path_lower,
-    });
-    if (!fileResponse.content) {
-      console.log('no content', fileEntry.path_lower);
-      return;
-    }
-    const md = await convertStringFromDocxToMarkdown(fileResponse.file_binary);
-    console.log(md);
-    throw new Error('stop to try');
+  const fileResponse = await dbx.filesDownload({
+    path: fileEntry.path_lower,
+  });
+  switch (ext) {
+    case 'docx':
+      await handleDocxFile(fileResponse.fileBinary, fileEntry.path_lower);
+      break;
+    case 'doc':
+      await handleDocFile();
+      break;
+    default:
+      console.log(`${ext} extension is not supported`);
+      break;
   }
-  console.log('not doc', ext);
+}
+
+async function handleDocFile() {
+  // startConvertJob
+  // pollUntilReady
+  // downloadFile
+  // convertToMd
+  // https://developers.zamzar.com/docs#section-Start_a_conversion_job
+}
+
+let index = 0;
+async function handleDocxFile(fileBinary, originalPath) {
+  const filename = await saveTempFile(fileBinary, 'docx');
+  try {
+    const md = await convertStringFromDocxToMarkdown(filename);
+    await writeFileAsync(`./markdowns/${index++}.md`, md);
+  } catch (e) {
+    console.error(`failed converting ${originalPath}`, e.message);
+  }
 }
 
 async function handleDeleted(deletedEntry) {
@@ -83,13 +105,15 @@ function isFile(entry) {
 function isDeleted(entry) {
   return entry['.tag'] === 'deleted';
 }
-let index = 0;
-async function convertStringFromDocxToMarkdown(str) {
-  const fs = require('fs');
-  const { promisify } = require('util');
-  const writeFileAsync = promisify(fs.writeFile);
-  const filename = `./temps/${index++}.doc`;
-  await writeFileAsync(filename, str);
+
+let tempIndex = 0;
+async function saveTempFile(fileBinary, ext, path = './temps') {
+  const filename = `${path}/${tempIndex++}.${ext}`;
+  await writeFileAsync(filename, fileBinary, { encoding: 'binary' });
+  return filename;
+}
+
+async function convertStringFromDocxToMarkdown(filename) {
   return new Promise((resolve, reject) => {
     pandoc(filename, '-f docx -t markdown', (err, result) => {
       if (err) {
