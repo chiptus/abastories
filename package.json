@@ -19,7 +19,10 @@
     "express": "^4.16.2",
     "humps": "^2.0.1",
     "ioredis": "^3.2.1",
-    "node-pandoc": "^0.3.0"
+    "node-pandoc": "^0.3.0",
+    "request": "^2.34",
+    "request-promise-native": "^1.0.5",
+    "winston": "3.0.0-rc0"
   },
   "scripts": {
     "dev": "nodemon server.js"

@@ -4,6 +4,7 @@ const Dropbox = require('dropbox');
 const pandoc = require('node-pandoc');
 const fs = require('fs');
 const { promisify } = require('util');
+const { logger, unhandledFilesLogger } = require('./logger');
 
 const writeFileAsync = promisify(fs.writeFile);
 
@@ -34,7 +35,7 @@ async function handleAccount() {
       hasMore = result.has_more;
     }
   } catch (e) {
-    console.log('Error in handleAccount', e.error);
+    logger.error('Error in handleAccount', e.error);
   }
 }
 
@@ -59,31 +60,26 @@ async function handleFile(fileEntry) {
       await handleDocxFile(fileResponse.fileBinary, fileEntry.path_lower);
       break;
     case 'doc':
-      await handleDocFile();
-      break;
     default:
-      console.log(`${ext} extension is not supported`);
+      unhandledFilesLogger.info(`${fileEntry.path_lower}`);
       break;
   }
 }
 
-async function handleDocFile() {
-  // startConvertJob
-  // pollUntilReady
-  // downloadFile
-  // convertToMd
-  // https://developers.zamzar.com/docs#section-Start_a_conversion_job
+async function handleDocxFile(fileBinary, originalPath) {
+  const tempfile = await saveTempFile(fileBinary, 'docx');
+  const mdfilename = getFileName(originalPath);
+  try {
+    const md = await convertStringFromDocxToMarkdown(tempfile);
+    await writeFileAsync(`./markdowns/${mdfilename}`, md);
+    logger.info(`saved md ${mdfilename}`);
+  } catch (e) {
+    logger.error(`failed converting ${originalPath} error:  ${e.message}`);
+  }
 }
 
-let index = 0;
-async function handleDocxFile(fileBinary, originalPath) {
-  const filename = await saveTempFile(fileBinary, 'docx');
-  try {
-    const md = await convertStringFromDocxToMarkdown(filename);
-    await writeFileAsync(`./markdowns/${index++}.md`, md);
-  } catch (e) {
-    console.error(`failed converting ${originalPath}`, e.message);
-  }
+function getFileName(originalPath) {
+  return originalPath.replace(/\/|\\/g, '_').replace(/\.(\w+)$/, '.md');
 }
 
 async function handleDeleted(deletedEntry) {
