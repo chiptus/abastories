@@ -5,7 +5,7 @@ const pandoc = require('node-pandoc');
 const fs = require('fs');
 const { promisify } = require('util');
 const { logger, unhandledFilesLogger } = require('./logger');
-
+const { GIT_REPO_PATH } = require('./constants');
 const writeFileAsync = promisify(fs.writeFile);
 
 const { DROPBOX_TOKEN } = process.env;
@@ -34,6 +34,7 @@ async function handleAccount() {
       cursor = result.cursor;
       hasMore = result.has_more;
     }
+    await commitFilesAndPush();
   } catch (e) {
     logger.error('Error in handleAccount', e.error);
   }
@@ -50,6 +51,7 @@ async function handleEntry(entry) {
     return await handleFile(entry);
   }
 }
+
 async function handleFile(fileEntry) {
   const ext = getFileExtension(fileEntry.path_lower);
   const fileResponse = await dbx.filesDownload({
@@ -71,7 +73,7 @@ async function handleDocxFile(fileBinary, originalPath) {
   const mdfilename = getFileName(originalPath);
   try {
     const md = await convertStringFromDocxToMarkdown(tempfile);
-    await writeFileAsync(`./markdowns/${mdfilename}`, md);
+    await writeFileAsync(`${GIT_REPO_PATH}/${mdfilename}`, md);
     logger.info(`saved md ${mdfilename}`);
   } catch (e) {
     logger.error(`failed converting ${originalPath} error:  ${e.message}`);
@@ -123,4 +125,11 @@ async function convertStringFromDocxToMarkdown(filename) {
 function getFileExtension(filePath) {
   const regMatch = filePath.match(/\.(\w+)$/);
   return regMatch ? regMatch[1] : '';
+}
+
+async function commitFilesAndPush() {
+  const childProcess = require('child_process');
+  const execAsync = promisify(childProcess.exec);
+  await execAsync(`git commit -m ${Date.now} -a`, { cwd: GIT_REPO_PATH });
+  await execAsync('git push', { cwd: GIT_REPO_PATH });
 }
