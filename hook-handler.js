@@ -30,13 +30,13 @@ async function handleAccount() {
       let result = cursor
         ? await dbx.filesListFolderContinue({ cursor })
         : await dbx.filesListFolder({ path: filePath });
-      result.entries.forEach(handleEntry);
+      await Promise.all(result.entries.map(handleEntry));
       cursor = result.cursor;
       hasMore = result.has_more;
     }
     await commitFilesAndPush();
   } catch (e) {
-    logger.error('Error in handleAccount', e.error);
+    logger.error('Error in handleAccount', e);
   }
 }
 
@@ -130,6 +130,11 @@ function getFileExtension(filePath) {
 async function commitFilesAndPush() {
   const childProcess = require('child_process');
   const execAsync = promisify(childProcess.exec);
-  await execAsync(`git commit -m ${Date.now} -a`, { cwd: GIT_REPO_PATH });
-  await execAsync('git push', { cwd: GIT_REPO_PATH });
+  try {
+    await execAsync(`git add -A`, { cwd: GIT_REPO_PATH });
+    await execAsync(`git commit -m ${Date.now()} -a`, { cwd: GIT_REPO_PATH });
+    await execAsync('git push', { cwd: GIT_REPO_PATH });
+  } catch (e) {
+    logger.error('error while commiting files', e);
+  }
 }
