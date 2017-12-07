@@ -2,13 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const { camelizeKeys } = require('humps');
-// const Redis = require('ioredis');
-const constants = require('./constants');
+const git = require('./git-main');
 const { handleAccount } = require('./hook-handler');
 
 const app = express();
 const port = process.env.PORT;
-// const redis = Redis(process.env.REDIS_URL);
 
 app.use(bodyParser.json());
 
@@ -34,8 +32,10 @@ app.post('/webhook', (request, response) => {
   return response.send({ message: 'ok' });
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`app is listening on ${port}`);
+  await git.init();
+  console.log('git state', git.repo.state);
 });
 
 function validateRequest(request) {
